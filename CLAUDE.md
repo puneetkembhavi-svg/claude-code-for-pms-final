@@ -20,71 +20,36 @@ teaching scenario.
 
 ## Working context
 
-New hire: PM for **Rook Dispatch**, starting now. Compiled from `00-rook/company/` on 8 Sept 2026.
+New hire: PM for **Rook Dispatch**. Compiled from `00-rook/`, last updated 9 Sept 2026.
 
-### What Rook does
-Coordination and provisioning software for the protective-response sector — publicly framed as logistics/workforce-coordination for emergency services. Real customers are independently-operating responders and the handlers/quartermasters who support them. Two product surfaces:
+### The business
+Coordination and provisioning software for the protective-response sector. Real customers are independently-operating responders and the handlers/quartermasters who support them.
 
-- **Rook Dispatch** — responder coordination: availability, proximity, callout routing, acceptance. Used by handlers (web console) and responders (mobile). *This is your product.*
-- **Rook Supply** — gear provisioning: requisitions, maintenance, failure reports. Used by handlers and quartermasters.
+- **Rook Dispatch** — responder coordination: availability, proximity, callout routing, acceptance. Handlers (web console) + responders (mobile). *This is your product.*
+- **Rook Supply** — gear provisioning: requisitions, maintenance, failure reports. Handlers + quartermasters.
 
-Ships monthly on a release train (4.x numbering). Current release: **4.2** (shipped 12 Aug 2026).
+Ships monthly, 4.x numbering. Current release: **4.2** (12 Aug 2026).
 
 ### How Dispatch works
-Incident arrives (handler entry or intake system) → Dispatch ranks available responders (**routing priority**) → top-ranked responder gets a **callout offer** on mobile → accept, or decline/timeout moves it to the next responder → acceptance marks the responder engaged.
+Incident arrives → Dispatch ranks available responders (**routing priority**: proximity, availability, capability match, recent-acceptance history) → top-ranked responder gets a **callout offer** on mobile → accept, or decline/timeout moves it to the next responder. Routing config ships with releases, not a runtime setting.
 
-Routing priority inputs: proximity (travel-time estimate), current availability, capability match, recent acceptance history. Declining/timing out lowers a responder's recent-acceptance component, which lowers their routing priority until it recovers. Routing config ships with releases — not a runtime setting handlers can adjust.
-
-**Headline metrics:** callout acceptance rate (weekly, aggregate), time-to-accept (median seconds), coverage gap (incidents with no capability-matched responder available).
+**Headline metrics:** callout acceptance rate (weekly), time-to-accept (median seconds), coverage gap (no capability-matched responder available).
 
 ### Vocabulary
-- **Responder** — independent field operator, not a Rook employee. Exists in our systems only as capability tags + availability; never a legal identity.
-- **Cover identity** — a responder's public persona. Rook holds no mapping to a legal identity — don't design as if we do. See Security Policy 4.1 before touching responder records.
-- **Handler** — manages a responder or small group: availability, gear, readiness. Usually the one actually using the product.
-- **Quartermaster** — owns equipment stock/approvals (Supply-side).
-- **Callout / callout offer / callout timeout** — a request for a responder; the offer to one specific responder; how long that offer stays live before moving on (currently 60s, cut from 90s in 4.2).
-- **Decline vs. timeout** — distinct in the data; both send the callout onward.
-- **Coverage gap** — nobody available had the right capability tags (different from low acceptance — nobody *could* go, vs. nobody *did*).
-- **Capability tag** — flight, structural-entry, hazmat-tolerant, cold-weather, aquatic, crowd-management, de-escalation.
-- **Responder Availability Record** — shared record of responder availability; **written by Dispatch, read-only for Supply** (Supply uses it to schedule maintenance around callout load).
-- **Mutual aid** — cross-region coverage between responders. Not built yet; Q4 exploration.
-- Supply terms you'll hear on shared calls: **requisition**, **field failure report**, **service interval**.
-
-### Where things stand (as of hire date)
-4.2 (12 Aug) rebalanced routing to weight proximity more heavily vs. recent acceptance history — a long-requested change for responders in wide geographies, sat on for three quarters. Also cut callout timeout 90s→60s, and shipped filter persistence + 3 defect fixes.
-
-Since the release, acceptance is down and complaint volume is ~3x normal, split into two distinct issues: (1) "phone never goes off" and (2) "offer expired before I could respond." Support (Nadia) has been tracking the split since 18 Aug. Prior PM's read was "mostly seasonal, will recover in September" — **investigated below, and that read does not hold up.**
-
-Explicitly **not** to relitigate: reverting the 4.2 routing change itself (proximity/acceptance rebalance) — it was a deliberate, long-requested fix and reverting trades one unhappy group for another. The timeout cut is a separate, more defensible thing to revisit (see below).
-
-### 4.2 root-cause investigation (findings, 9 Sept 2026)
-
-**Not seasonal.** Aggregate acceptance rate did crater the week 4.2 shipped (77%→54%) and has been climbing back since (66%, 73%) — this is what makes the seasonal read look plausible. But the *spread* of callout volume across responders has been widening every week since release, not recovering: weekly std. dev. per responder went 2.4 (stable for 6 weeks pre-4.2) → 4.7 → 6.4 → 7.0. By the week of 31 Aug, four responders (Farlight, Meteor Mite, The Undertow, Vesper) are down to 0–1 callouts/week from a normal 10–14, while four others (The Gale, Nightwell, Captain Vantage, Stormwrack) are up to 18–21/week from a normal 12–15. Seasonal softness would depress everyone evenly; this is redistribution, concentrating callouts onto a shrinking pool of responders — and it's actively getting worse, not settling down. (Caveat: 2 tickets — Ironvale, Nightwell — don't match this CSV pattern; worth confirming with Ravi whether `00-rook/data/callout-history.csv` is the real weekly numbers or the rough pull Marcus mentioned pulling by hand on 18 Aug, before leaning on it further.)
-
-**Mechanism:** a pre-existing gap in `history.py` (see `00-rook/code/dispatch-routing/history.py`) scores a timed-out offer (`NO_ANSWER`) identically to an active decline — both call `record_declined()`, same penalty. There's also no time-decay: a responder's recent-acceptance score only moves via accept/decline, never drifts back toward neutral on its own (unresolved TODO in that file since 2019). This was harmless at a 90s timeout; cutting it to 60s in 4.2 made misses more common, which triggers the same penalty as a refusal, which lowers routing priority, which means fewer future offers, which — with no decay — the responder can't recover from without an offer they're no longer getting. Self-reinforcing in both directions: responders already winning climb further too. Marcus asked whether the config distinguishes decline from timeout in `#dispatch-team` on 14 Aug; nobody ever answered it.
-
-**Fix options (either helps, neither alone is complete — do both):**
-1. Give `NO_ANSWER` a smaller (or zero) penalty than an active `DECLINE` in `offer.py`/`history.py`.
-2. Add time-based decay in `history.py` so score drifts back toward `NEUTRAL_SCORE` (0.5) the longer a responder goes without an offer.
-
-Reverting the timeout to 90s alone would reduce how often misses happen and slow the spiral, but wouldn't fix it — the scoring bug would still ratchet down anyone having a bad week. Not a substitute for the code fix above.
-
-**Score storage detail:** the recent-acceptance score lives only in an in-memory dict (`_scores = {}` in `history.py`) — not persisted elsewhere, worth confirming with Marcus/Wen how that survives a deploy or restart before relying on it for anything.
-
-**My immediate next steps on this:** (1) take the fix to Marcus/Wen and get it scoped into a release — this is compounding weekly; (2) make sure Helen and Nadia see the divergence data so nobody reverts the 4.2 proximity/acceptance rebalance itself as an overreaction to the wrong root cause; (3) loop in support/handlers on what's actually happening to the starved responders (Farlight, Meteor Mite, The Undertow, Vesper) so they're not left thinking their accounts are broken.
-
-**Note:** neither "reconcile squeezed-out Q3 items with Helen" nor "write the routing spec" is actually tracked on the Q3 roadmap today — both are informal follow-ups from Priya's handover, not committed work. Worth getting them onto the roadmap properly if they're going to happen.
-
-Other open threads from handover:
-- No written spec exists for how routing/"who gets pinged" actually works — Wen Li built it, it lives in her head. Worth writing down.
-- Some Q3-committed items got squeezed out of 4.2 scope; unclear which are still committed. Needs a conversation with Helen.
-- Console filter-persistence change will generate tickets but is cosmetic/noise — don't over-invest there.
+- **Responder** — independent field operator, not a Rook employee. Systems hold only capability tags + availability, never a legal identity (**cover identity**). Don't design as if we can map one to the other — see Security Policy 4.1.
+- **Handler** — manages a responder's availability, gear, readiness; usually the actual product user. **Quartermaster** — owns Supply's equipment stock/approvals.
+- **Callout / offer / timeout** — a request; the offer to one responder; how long it stays live before moving on (60s, cut from 90s in 4.2).
+- **Coverage gap** — nobody available had the right capability tag (vs. low acceptance — nobody *did* go).
+- **Capability tags** — flight, structural-entry, hazmat-tolerant, cold-weather, aquatic, crowd-management, de-escalation.
+- **Responder Availability Record** — written by Dispatch, read-only for Supply (drives Supply's maintenance scheduling).
+- **Mutual aid** — cross-region coverage between responders. Not built; Q4 exploration.
+- Supply terms on shared calls: **requisition**, **field failure report**, **service interval**.
 
 ### Roadmap (Q3 2026, owner: Helen Achebe)
 | Item | Surface | Target | Status |
 |---|---|---|---|
 | Change to who gets pinged | Dispatch | 4.2 | Committed (shipped) |
-| Availability Confidence (confidence score next to stated availability) | Dispatch | 4.2 | Committed — driven by support escalations |
+| Availability Confidence (score next to stated availability) | Dispatch | 4.2 | Committed — driven by support escalations |
 | Ping timeout tuning | Dispatch | 4.2 | Committed (shipped) |
 | Requisition approval chains | Supply | 4.3 | Committed |
 | Handler phone app | Supply | Q4 | Exploring |
@@ -93,15 +58,26 @@ Other open threads from handover:
 Committed items against a numbered release are locked; changes go through Product.
 
 ### People
-| Name | Role | Surface | Notes |
-|---|---|---|---|
-| Helen Achebe | Director of Product | Dispatch & Supply | Your manager. Owns roadmap/commitments. |
-| Marcus Oyelaran | Engineering Manager | Dispatch | Runs Dispatch eng. Straight talker, first stop when unsure. Can pull numbers. |
-| Wen Li | Staff Engineer | Dispatch | Built routing/ranking. The only real source on how it works. Was away 14–24 Aug. |
-| Sofia Marino | Product Designer | Dispatch | Console + phone app. |
-| Nadia Hoffmann | Support Lead | Dispatch & Supply | Sees complaint volume first. Worth a standing 15 min. |
-| Ravi Menon | Data Analyst | Dispatch & Supply | The numbers; weekly acceptance reporting. Requests via #data. |
-| Priya Raghunathan | (former PM, Dispatch) | — | Departed 21 Aug 2026. Left a handover doc — see `00-rook/company/notes/handoff-from-priya.docx`. |
+| Name | Role | Notes |
+|---|---|---|
+| Helen Achebe | Director of Product | Your manager. Owns roadmap/commitments. |
+| Marcus Oyelaran | Eng Manager, Dispatch | First stop when unsure. Can pull numbers. |
+| Wen Li | Staff Eng, Dispatch | Built routing/ranking — the only real source on how it works. |
+| Sofia Marino | Product Designer, Dispatch | Console + phone app. |
+| Nadia Hoffmann | Support Lead | Sees complaint volume first. Worth a standing 15 min. |
+| Ravi Menon | Data Analyst | The numbers; weekly acceptance reporting. Via #data. |
+| Priya Raghunathan | Former PM, Dispatch | Departed 21 Aug 2026. Handover doc: `00-rook/company/notes/handoff-from-priya.docx`. |
+
+### The 4.2 incident — current priority
+4.2 rebalanced routing (proximity up, recent-acceptance down) and cut the offer timeout 90s→60s. Since then, acceptance is down and complaints are ~3x normal ("phone never goes off" / "offer expired before I could respond"). Prior PM's read — "seasonal, recovers by September" — **is disproven**: aggregate acceptance rate is bouncing back (77%→54%→73%), but the *spread* of callout volume across responders keeps widening (stdev 2.4 pre-release → 7.0 by 31 Aug). Four responders (Farlight, Meteor Mite, The Undertow, Vesper) are down to 0–1 callouts/week; four others (The Gale, Nightwell, Captain Vantage, Stormwrack) are up to 18–21/week. That's redistribution, not softness, and it's still worsening. *(Caveat: 2 tickets — Ironvale, Nightwell — don't match the CSV; confirm with Ravi whether `callout-history.csv` is real numbers or Marcus's rough 18 Aug pull.)*
+
+**Root cause:** `history.py` scores a timed-out offer (`NO_ANSWER`) identically to an active decline, and the score never decays back to neutral (unresolved TODO since 2019). Harmless at 90s; at 60s, misses spike, tank a responder's score, drop their routing priority, and — with no decay — they can't recover without an offer they're no longer getting. Self-reinforcing both directions. Marcus flagged this exact gap in `#dispatch-team` on 14 Aug; never answered. Score is in-memory only (`_scores = {}`, `history.py`) — confirm with Marcus/Wen how it survives a deploy.
+
+**Fix (both, in `history.py`/`offer.py`):** (1) smaller penalty for timeout than decline; (2) time-decay toward neutral. Reverting to 90s alone slows the spiral but doesn't fix it.
+
+**Not to relitigate:** the proximity/acceptance rebalance itself — deliberate, long-requested; reverting just swaps one unhappy group for another.
+
+**Next steps:** get the fix scoped with Marcus/Wen; keep Helen/Nadia anchored on the real cause so the rebalance doesn't get reverted by mistake; loop in support on the starved responders. Two more things from Priya's handover, neither currently tracked on the roadmap: reconcile which Q3 items got squeezed out of 4.2 (with Helen), and get the routing logic written down (today it only lives in Wen's head). Filter-persistence tickets are cosmetic noise — don't over-invest there.
 
 ### Confidentiality
-Responder cover identities are never stored or reconstructable in production — capability tags, availability, and callout history only. Don't design anything that assumes we can map a responder to a legal identity, and don't try to work out who anyone is.
+Responder cover identities are never stored or reconstructable in production. Don't design anything that assumes we can map a responder to a legal identity, and don't try to work out who anyone is.
