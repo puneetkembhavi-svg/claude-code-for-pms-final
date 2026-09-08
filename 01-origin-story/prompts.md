@@ -24,6 +24,64 @@ built from your own questions.
 
 ### 1.
 
+Can you read all my files? list them
+
 ### 2.
 
+what is my directory name
+
 ### 3.
+
+list what's in 00-rook/
+
+### 4.
+
+What is the root cause for 4.2 release failure?
+
+### 5.
+
+give me 2 sentence summary in layman terms
+
+### 6.
+
+Does moving back to 90S will solve the problem? any other issues? answer in 2 sentences
+
+### 7.
+
+tell me what is stored in history.py in 2 sentences
+
+### 8.
+
+what are 2 ways to fix this? answer in one sentence each
+
+### 9.
+
+what should be role as a PM here? answer in 3 bullet points
+
+### 10.
+
+Are you updating the context?
+
+### 11.
+
+Yes, PLease do
+
+### 12.
+
+do i need to git push? or its already updated?
+
+### 13.
+
+yes do it
+
+### 14.
+
+open the file content
+
+### 15.
+
+what should i be doing once 4.2 issues are resolved. answer in 2 bullet points
+
+### 16.
+
+can you cnfirm that its part of the roadmap?

@@ -69,6 +69,12 @@ Explicitly **not** to relitigate: reverting the 4.2 routing change itself (proxi
 
 Reverting the timeout to 90s alone would reduce how often misses happen and slow the spiral, but wouldn't fix it — the scoring bug would still ratchet down anyone having a bad week. Not a substitute for the code fix above.
 
+**Score storage detail:** the recent-acceptance score lives only in an in-memory dict (`_scores = {}` in `history.py`) — not persisted elsewhere, worth confirming with Marcus/Wen how that survives a deploy or restart before relying on it for anything.
+
+**My immediate next steps on this:** (1) take the fix to Marcus/Wen and get it scoped into a release — this is compounding weekly; (2) make sure Helen and Nadia see the divergence data so nobody reverts the 4.2 proximity/acceptance rebalance itself as an overreaction to the wrong root cause; (3) loop in support/handlers on what's actually happening to the starved responders (Farlight, Meteor Mite, The Undertow, Vesper) so they're not left thinking their accounts are broken.
+
+**Note:** neither "reconcile squeezed-out Q3 items with Helen" nor "write the routing spec" is actually tracked on the Q3 roadmap today — both are informal follow-ups from Priya's handover, not committed work. Worth getting them onto the roadmap properly if they're going to happen.
+
 Other open threads from handover:
 - No written spec exists for how routing/"who gets pinged" actually works — Wen Li built it, it lives in her head. Worth writing down.
 - Some Q3-committed items got squeezed out of 4.2 scope; unclear which are still committed. Needs a conversation with Helen.
