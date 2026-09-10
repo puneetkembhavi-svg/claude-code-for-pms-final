@@ -79,5 +79,12 @@ Committed items against a numbered release are locked; changes go through Produc
 
 **Next steps:** get the fix scoped with Marcus/Wen; keep Helen/Nadia anchored on the real cause so the rebalance doesn't get reverted by mistake; loop in support on the starved responders. Two more things from Priya's handover, neither currently tracked on the roadmap: reconcile which Q3 items got squeezed out of 4.2 (with Helen), and get the routing logic written down (today it only lives in Wen's head). Filter-persistence tickets are cosmetic noise — don't over-invest there.
 
+### Feedback: interviews vs. tickets
+25 tickets (`00-rook/feedback/tickets/`): 16 quiet-spell, 6 missed/expired, 3 combined — 13 handler-filed (web console), 12 responder-filed (mobile, terse). 4 interviews (`00-rook/feedback/interviews/`, run by Sofia Marino for console redesign research — not originally about 4.2) independently corroborate the spiral: Kip watches two of his own responders side by side (Meteor Mite crashed, The Gale thriving) with nothing on screen explaining why — same divergence pattern as the CSV, spotted without knowing the routing bug existed. Ambrose told the same near-miss story twice, three weeks apart, unprompted both times — once as T-001, once in his interview.
+
+Why both sources look different but aren't contradictory: tickets self-select for pain (only filed when something's wrong, so they skew toward the crashed responders); the interviews were sampled for UI research, not incident severity, so they show a truer mix of winners and losers.
+
+Other UX asks surfaced in interviews, separate from the 4.2 bug — worth a product backlog, not urgent: console legibility/dark mode (3 of 4 interviews), filter-persistence trust, per-responder alert sound, handler-side notification when an offer comes in. Halloran also flagged Supply issues: requisition priority flag is ignored, failure reports get no feedback, catalog search is weak.
+
 ### Confidentiality
 Responder cover identities are never stored or reconstructable in production. Don't design anything that assumes we can map a responder to a legal identity, and don't try to work out who anyone is.
