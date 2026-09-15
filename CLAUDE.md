@@ -79,6 +79,17 @@ Committed items against a numbered release are locked; changes go through Produc
 
 **Next steps:** get the fix scoped with Marcus/Wen; keep Helen/Nadia anchored on the real cause so the rebalance doesn't get reverted by mistake; loop in support on the starved responders. Two more things from Priya's handover, neither currently tracked on the roadmap: reconcile which Q3 items got squeezed out of 4.2 (with Helen), and get the routing logic written down (today it only lives in Wen's head). Filter-persistence tickets are cosmetic noise — don't over-invest there.
 
+### CSV deep-dive (module 3 findings)
+The failure has two distinct phases, not one: (1) a **uniform shock** the release week — every one of the 16 responders' acceptance rate dropped double digits simultaneously (aggregate 77.9%→54.2%), consistent with the timeout cut alone; then (2) a **diverging redistribution** starting the following week that the timeout cut can't explain on its own, since it wasn't uniform — stdev of weekly volume per responder tripled (2.4→7.0) over the next three weeks and is still climbing.
+
+Pre-4.2 acceptance rate only weakly predicts who crashes (r=0.285) — Vesper had one of the *highest* pre-4.2 rates (81.9%) yet crashed hardest of anyone (−81%). This suggests the proximity-weight increase (0.45→0.60) is doing real work in *who specifically* gets hurt, not just the scoring bug — but this CSV has no location/travel-time field to confirm it directly. Worth pulling routing/proximity logs from Wen to test this properly before finalizing the fix scope.
+
+Tickets undercount the worst cases: of the 4 most-crashed responders, 2 (Vesper, Meteor Mite) never filed a single ticket — they only surface via the interviews. Don't use ticket volume as a proxy for who's hurting worst.
+
+**Reporting script that tested well with Helen-style questions:** lead with the split, not the rate — *"4 of 16 responders are down 75–89% in the same 3 weeks that 7 others are up 30–49%"* — then explain why acceptance rate looks like it's recovering: the router is increasingly only asking people likely to say yes, so the rate can improve *because* the spiral is worsening, not despite it.
+
+No documented testing/guardrail process exists anywhere in the source docs for this release (no staged rollout, canary, or rollback threshold found). The real miss was process, not test coverage: Marcus asked the exact right question in Slack the day after release (does the config distinguish decline from timeout?) and it was never answered.
+
 ### Feedback: interviews vs. tickets
 25 tickets (`00-rook/feedback/tickets/`): 16 quiet-spell, 6 missed/expired, 3 combined — 13 handler-filed (web console), 12 responder-filed (mobile, terse). 4 interviews (`00-rook/feedback/interviews/`, run by Sofia Marino for console redesign research — not originally about 4.2) independently corroborate the spiral: Kip watches two of his own responders side by side (Meteor Mite crashed, The Gale thriving) with nothing on screen explaining why — same divergence pattern as the CSV, spotted without knowing the routing bug existed. Ambrose told the same near-miss story twice, three weeks apart, unprompted both times — once as T-001, once in his interview.
 
