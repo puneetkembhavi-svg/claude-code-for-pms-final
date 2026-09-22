@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rook Dispatch — Coverage prototype</title>
+<style>
+  :root {
+    --bg: #f4f3ef;
+    --card: #ffffff;
+    --ink: #1f2320;
+    --ink-muted: #6b6f6a;
+    --border: #e1ded4;
+    --accent: #185fa5;
+    --accent-bg: #e6f1fb;
+    --warm: #ba7517;
+    --warm-bg: #faeeda;
+    --good: #3b6d11;
+    --good-bg: #eaf3de;
+    --quiet: #993c1d;
+    --quiet-bg: #faece7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 32px 24px 64px;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .brand { font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-muted); font-weight: 600; }
+  .signedin {
+    font-size: 13px; color: var(--ink-muted);
+    background: var(--card); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 20px;
+  }
+  h1 { font-size: 22px; margin: 4px 0 2px; }
+  .sub { color: var(--ink-muted); font-size: 14px; margin: 0 0 12px; max-width: 640px; }
+
+  .howit {
+    margin-bottom: 20px;
+  }
+  .howit-toggle {
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    display: inline-block;
+  }
+  .howit-body {
+    display: none;
+    margin-top: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+    max-width: 680px;
+  }
+  .howit-body.open { display: block; }
+
+  .statbar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .statbar .num {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ink);
+    transition: color 0.3s ease;
+  }
+  .statbar .label { font-size: 13px; color: var(--ink-muted); }
+  .statbar.narrow .num { color: var(--good); }
+  .statbar.wide .num { color: var(--quiet); }
+
+  .locked-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--quiet);
+    background: var(--card);
+    border: 1px solid var(--quiet);
+    padding: 1px 7px;
+    border-radius: 10px;
+    margin-left: 8px;
+  }
+
+  .summary {
+    margin-top: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: none;
+  }
+  .summary.show { display: block; }
+  .summary h2 { font-size: 14px; margin: 0 0 10px; font-weight: 600; }
+  .summary-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+  }
+  .summary-row:first-of-type { border-top: none; }
+  .summary-row .sname { width: 140px; font-weight: 600; flex-shrink: 0; }
+  .summary-row .sjourney { color: var(--ink-muted); flex: 1; }
+  .summary-row .sstate { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+
+  .controls {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .toggle-group {
+    display: inline-flex;
+    background: var(--bg);
+    border-radius: 20px;
+    padding: 3px;
+    border: 1px solid var(--border);
+  }
+  .toggle-group button {
+    border: none;
+    background: transparent;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 16px;
+    cursor: pointer;
+    color: var(--ink-muted);
+  }
+  .toggle-group button.active {
+    background: var(--ink);
+    color: #fff;
+  }
+  .spacer { flex: 1; }
+  .weekcount { font-size: 13px; color: var(--ink-muted); }
+  .weekcount b { color: var(--ink); }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:disabled { background: #9db8ce; cursor: default; }
+  button.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    padding: 9px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: background 0.3s ease, border-color 0.3s ease;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+  .card-name { font-size: 16px; font-weight: 600; }
+  .card-tag {
+    font-size: 11px;
+    color: var(--ink-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+  .card-handler { font-size: 12px; color: var(--ink-muted); margin-bottom: 14px; }
+
+  .bars { display: flex; align-items: flex-end; gap: 5px; height: 46px; margin-bottom: 2px; position: relative; }
+  .bar-wrap { flex: 1; position: relative; height: 100%; display: flex; align-items: flex-end; }
+  .bar-wrap.divider::before {
+    content: '';
+    position: absolute;
+    left: -3px;
+    top: -4px;
+    bottom: -4px;
+    border-left: 1px dashed var(--ink-muted);
+  }
+  .bar { width: 100%; background: var(--border); border-radius: 3px 3px 0 0; transition: height 0.4s ease, background 0.4s ease; min-height: 3px; }
+  .bar-label { display:flex; gap: 5px; margin-bottom: 4px; }
+  .bar-label span { flex: 1; text-align: center; font-size: 10px; color: var(--ink-muted); }
+  .bar-footnote { font-size: 10px; color: var(--ink-muted); margin-bottom: 12px; min-height: 12px; }
+
+  .status-line {
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.3s ease, color 0.3s ease;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .reveal-toggle {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--accent);
+    cursor: pointer;
+    user-select: none;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+  }
+  .underneath {
+    display: none;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+  .underneath.open { display: block; }
+  .underneath-label { display: flex; justify-content: space-between; margin-bottom: 4px; gap: 8px; }
+  .meter { height: 6px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .meter-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease, background 0.4s ease; }
+
+  footer {
+    margin-top: 28px;
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  footer code { background: var(--card); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">Rook Dispatch</div>
+    <div class="signedin">Coverage view · four responders, three handlers</div>
+  </div>
+  <h1>Coverage — recovering after a quiet stretch</h1>
+  <p class="sub">Four real responders from the 4.2 data, each with their own handler. Nothing new was added to any of these screens — watch what happens to the same four cards under today's system versus the proposed fix.</p>
+
+  <div class="howit">
+    <span class="howit-toggle" id="howitToggle">How this works ▾</span>
+    <div class="howit-body" id="howitBody">
+      Since 4.2, missing a call by a few seconds is scored the same as refusing it — and there's no way for that to heal
+      on its own. A responder who has one unlucky week gets asked less, which gives them fewer chances to prove
+      themselves, which keeps their score down. The fix: let a quiet stretch drift back toward normal on its own, the
+      longer it goes untouched — no new setting, nothing a handler has to learn. Toggle the switch below and fast-forward
+      to watch it happen.
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="toggle-group" id="modeToggle">
+      <button data-mode="today" class="active">Today's system</button>
+      <button data-mode="fix">Proposed fix</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="weekcount">Weeks simulated: <b id="weekCount">0</b></div>
+    <button class="primary" id="advanceBtn">Fast-forward 1 week →</button>
+    <button class="ghost" id="resetBtn">Reset</button>
+  </div>
+
+  <div class="statbar" id="statBar">
+    <span class="num" id="statNum">—</span>
+    <span class="label" id="statLabel">gap between the busiest and quietest responder this week</span>
+  </div>
+
+  <div class="cards" id="cardsRoot"></div>
+
+  <div class="summary" id="summary">
+    <h2>Where each responder actually landed</h2>
+    <div id="summaryRows"></div>
+  </div>
+
+  <footer>
+    Prototype for <code>05-super-speed/brief.md</code> — Rook Dispatch, "Recovering after a quiet stretch."
+    Weeks 8/10–8/31 use the real figures from <code>callout-history.csv</code>. Weeks simulated forward from here show each
+    system's own logic, not real data. Toggle "today's system" to see why reverting the timeout alone wouldn't have helped —
+    Meteor Mite and Vesper never recover on their own. Toggle "proposed fix" to see the same responders heal over a few
+    weeks with no new screen, setting, or button for any handler to learn.
+    <br><br>
+    Note: in the real product each handler only sees their own roster — Kip's actual console shows just Meteor Mite and
+    The Gale. This view widens it on one screen, for comparison, to show the pattern holds across different handlers too.
+  </footer>
+
+</div>
+
+<script>
+  const RESPONDERS = {
+    mite:    { name: 'Meteor Mite',    tag: 'aquatic',         handler: 'Kip',           startHistory: [10, 4, 2, 1],  baseline: 11, startStanding: 8  },
+    gale:    { name: 'The Gale',       tag: 'flight',          handler: 'Kip',           startHistory: [15, 17, 20, 21], baseline: 13, startStanding: 96 },
+    vesper:  { name: 'Vesper',         tag: 'cold-weather',    handler: 'Aunt Dot',      startHistory: [12, 5, 2, 1],  baseline: 14, startStanding: 9  },
+    vantage: { name: 'Captain Vantage',tag: 'structural-entry',handler: 'Mr. Ambrose',   startHistory: [13, 15, 17, 18], baseline: 12, startStanding: 78 }
+  };
+  const KEYS = Object.keys(RESPONDERS);
+  const WEEK_LABELS = ['8/10', '8/17', '8/24', '8/31'];
+
+  let history = {};
+  let standing = {};
+  let mode = 'today';
+  let weeks = 0;
+
+  const DECAY_RATE = 0.45;   // how fast standing drifts toward neutral each simulated week
+  const TARGET = 50;         // neutral resting point
+  const TOLERANCE = 8;       // within this of neutral counts as "back to normal"
+  const MAX_WEEKS = 8;
+
+  function resetState() {
+    history = {};
+    standing = {};
+    KEYS.forEach(k => {
+      history[k] = [...RESPONDERS[k].startHistory];
+      standing[k] = RESPONDERS[k].startStanding;
+    });
+    weeks = 0;
+  }
+
+  function stepStanding(s) {
+    return s + (TARGET - s) * DECAY_RATE;
+  }
+
+  function weeksToNormal(s) {
+    let cur = s, n = 0;
+    while (Math.abs(TARGET - cur) > TOLERANCE && n < 20) {
+      cur = stepStanding(cur);
+      n++;
+    }
+    return n;
+  }
+
+  function pingsForStanding(key, s) {
+    const base = RESPONDERS[key].baseline;
+    const raw = base * (s / TARGET);
+    return Math.max(0, Math.round(Math.min(raw, base * 2.2)));
+  }
+
+  function project(key) {
+    let pings = history[key][history[key].length - 1];
+    let s = standing[key];
+    if (mode === 'today') {
+      // no decay, no recovery without a lucky nearby incident — stays essentially frozen
+      pings = Math.max(0, pings);
+    } else {
+      s = stepStanding(s);
+      pings = pingsForStanding(key, s);
+    }
+    return { pings, standing: s };
+  }
+
+  function buildCards() {
+    const root = document.getElementById('cardsRoot');
+    root.innerHTML = KEYS.map(key => {
+      const r = RESPONDERS[key];
+      return `
+        <div class="card" id="card-${key}">
+          <div class="card-head">
+            <div class="card-name">${r.name}</div>
+            <div class="card-tag">${r.tag}</div>
+          </div>
+          <div class="card-handler">Handled by ${r.handler}</div>
+          <div class="bars" id="bars-${key}"></div>
+          <div class="bar-label">${WEEK_LABELS.map(w => `<span>${w}</span>`).join('')}</div>
+          <div class="bar-footnote" id="barnote-${key}"></div>
+          <div class="status-line" id="status-${key}"><div class="dot"></div><span></span></div>
+          <div class="reveal-toggle" data-target="under-${key}">Show what's happening underneath ▾</div>
+          <div class="underneath" id="under-${key}">
+            <div class="underneath-label"><span>Fairness score (never shown to ${r.handler} or ${r.name})</span><span id="pct-${key}">—</span></div>
+            <div class="meter"><div class="meter-fill" id="fill-${key}"></div></div>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.querySelectorAll('.reveal-toggle').forEach(el => {
+      el.addEventListener('click', () => {
+        const target = document.getElementById(el.dataset.target);
+        target.classList.toggle('open');
+        el.textContent = el.textContent.includes('▾')
+          ? el.textContent.replace('▾', '▴')
+          : el.textContent.replace('▴', '▾');
+      });
+    });
+  }
+
+  function render() {
+    document.getElementById('weekCount').textContent = weeks;
+    KEYS.forEach(renderCard);
+
+    document.querySelectorAll('#modeToggle button').forEach(b => {
+      b.classList.toggle('active', b.dataset.mode === mode);
+    });
+
+    const btn = document.getElementById('advanceBtn');
+    btn.disabled = weeks >= MAX_WEEKS;
+    btn.textContent = weeks >= MAX_WEEKS ? 'Simulation complete' : 'Fast-forward 1 week →';
+
+    renderStatBar();
+    renderSummary();
+  }
+
+  function renderStatBar() {
+    const latest = KEYS.map(k => history[k][history[k].length - 1]);
+    const gap = Math.max(...latest) - Math.min(...latest);
+    const bar = document.getElementById('statBar');
+    document.getElementById('statNum').textContent = gap + ' ' + (gap === 1 ? 'ping' : 'pings');
+    bar.classList.remove('narrow', 'wide');
+    bar.classList.add(gap <= 6 ? 'narrow' : 'wide');
+  }
+
+  function renderSummary() {
+    const panel = document.getElementById('summary');
+    if (mode !== 'fix' || weeks === 0) {
+      panel.classList.remove('show');
+      return;
+    }
+    panel.classList.add('show');
+    document.getElementById('summaryRows').innerHTML = KEYS.map(key => {
+      const r = RESPONDERS[key];
+      const before = r.startHistory[0];
+      const now = history[key][history[key].length - 1];
+      const s = standing[key];
+      const atNormal = Math.abs(TARGET - s) <= TOLERANCE;
+      const stateText = atNormal ? 'back to normal' : `${weeksToNormal(s)} week${weeksToNormal(s) === 1 ? '' : 's'} to go`;
+      const stateBg = atNormal ? 'var(--good-bg)' : 'var(--accent-bg)';
+      const stateColor = atNormal ? 'var(--good)' : 'var(--accent)';
+      return `<div class="summary-row">
+        <span class="sname">${r.name}</span>
+        <span class="sjourney">${before} pings/week → ${now} pings/week, over ${weeks} simulated week${weeks === 1 ? '' : 's'}</span>
+        <span class="sstate" style="background:${stateBg};color:${stateColor}">${stateText}</span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderCard(key) {
+    const r = RESPONDERS[key];
+    const data = history[key];
+    const barsEl = document.getElementById('bars-' + key);
+    barsEl.innerHTML = '';
+    const max = Math.max(...data, r.baseline * 1.6);
+    const realVisible = Math.max(0, 4 - weeks);
+    data.forEach((v, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'bar-wrap' + (i === realVisible && realVisible > 0 && realVisible < 4 ? ' divider' : '');
+      const bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.height = Math.max(4, (v / max) * 46) + 'px';
+      bar.style.background = v <= r.baseline * 0.25 ? 'var(--quiet)' : (v >= r.baseline * 1.4 ? 'var(--warm)' : 'var(--accent)');
+      wrap.appendChild(bar);
+      barsEl.appendChild(wrap);
+    });
+    const noteEl = document.getElementById('barnote-' + key);
+    noteEl.textContent = (realVisible > 0 && realVisible < 4) ? 'actual weeks · projected weeks →' : (realVisible === 0 && weeks > 0 ? 'all weeks shown are projected' : '');
+
+    const latest = data[data.length - 1];
+    const statusEl = document.getElementById('status-' + key);
+    const dot = statusEl.querySelector('.dot');
+    const label = statusEl.querySelector('span');
+
+    let stateClass, dotColor, text;
+    const base = r.baseline;
+    const pingWord = latest === 1 ? 'ping' : 'pings';
+    const s = standing[key];
+
+    if (mode === 'today') {
+      if (latest <= base * 0.35) {
+        stateClass = 'quiet'; dotColor = 'var(--quiet)';
+        const locked = weeks > 0 ? '<span class="locked-badge">no path back</span>' : '';
+        text = `${latest} ${pingWord} this week — quiet, no change without a lucky nearby call${locked}`;
+      } else if (latest >= base * 1.4) {
+        stateClass = 'warm'; dotColor = 'var(--warm)';
+        text = `${latest} ${pingWord} this week — carrying more than usual, no relief on its own`;
+      } else {
+        stateClass = 'good'; dotColor = 'var(--good)';
+        text = `${latest} ${pingWord} this week — steady`;
+      }
+    } else {
+      const atNormal = Math.abs(TARGET - s) <= TOLERANCE;
+      if (atNormal) {
+        stateClass = 'good'; dotColor = 'var(--good)';
+        text = `${latest} ${pingWord} this week — back to a normal, steady pace`;
+      } else {
+        const wtn = weeksToNormal(s);
+        stateClass = 'accent'; dotColor = 'var(--accent)';
+        text = `${latest} ${pingWord} this week — recovering, about ${wtn} more week${wtn === 1 ? '' : 's'} to a normal pace`;
+      }
+    }
+    statusEl.style.background = `var(--${stateClass}-bg)`;
+    statusEl.style.color = dotColor;
+    dot.style.background = dotColor;
+    label.innerHTML = text;
+
+    document.getElementById('pct-' + key).textContent = Math.round(s) + ' / 100';
+    const fill = document.getElementById('fill-' + key);
+    fill.style.width = s + '%';
+    fill.style.background = s < 30 ? 'var(--quiet)' : (s > 75 ? 'var(--warm)' : 'var(--good)');
+  }
+
+  document.getElementById('modeToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    mode = btn.dataset.mode;
+    render();
+  });
+
+  document.getElementById('advanceBtn').addEventListener('click', () => {
+    if (weeks >= MAX_WEEKS) return;
+    weeks += 1;
+    KEYS.forEach(key => {
+      const { pings, standing: s } = project(key);
+      history[key].push(pings);
+      history[key].shift();
+      standing[key] = s;
+    });
+    render();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    resetState();
+    render();
+  });
+
+  document.getElementById('howitToggle').addEventListener('click', () => {
+    const body = document.getElementById('howitBody');
+    const el = document.getElementById('howitToggle');
+    body.classList.toggle('open');
+    el.textContent = el.textContent.includes('▾') ? 'How this works ▴' : 'How this works ▾';
+  });
+
+  resetState();
+  buildCards();
+  render();
+</script>
+</body>
+</html>
