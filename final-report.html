@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release 4.2 — What Happened, and the Fix</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#131a26; --card:#161d2b; --card2:#1b2436;
+    --ink:#e9edf3; --ink-dim:#aab3c5; --ink-mute:#707d94;
+    --amber:#f2b134; --amber-dim:#8a6a26;
+    --blue:#4fa8ff; --blue-dim:#1e3a5c;
+    --green:#57c785; --green-dim:#1f4530;
+    --red:#ef6461; --red-dim:#4a2224;
+    --border:#232d42;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.6;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:0 24px}
+  a{color:var(--blue)}
+
+  /* progress dots */
+  .navdots{
+    position:fixed; right:18px; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:10px; z-index:50;
+  }
+  .navdots a{
+    width:9px; height:9px; border-radius:50%; background:var(--border);
+    display:block; transition:background .2s, transform .2s;
+  }
+  .navdots a.active{background:var(--amber); transform:scale(1.3)}
+  @media (max-width:820px){ .navdots{display:none} }
+
+  /* HERO */
+  .hero{
+    min-height:92vh; display:flex; flex-direction:column; justify-content:center;
+    position:relative; overflow:hidden; padding:80px 0 60px;
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(242,177,52,.10), transparent 60%),
+      radial-gradient(ellipse 900px 600px at 100% 10%, rgba(79,168,255,.12), transparent 60%);
+  }
+  .kicker{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--amber); margin-bottom:18px; display:flex; align-items:center; gap:10px;
+  }
+  .kicker::before{content:""; width:26px; height:1px; background:var(--amber)}
+  h1.title{
+    font-size:clamp(34px,5.4vw,58px); line-height:1.06; margin:0 0 20px; font-weight:800;
+    letter-spacing:-.01em;
+  }
+  h1.title .hl{color:var(--amber)}
+  h1.title .hl2{color:var(--red)}
+  .lede{
+    font-size:clamp(16px,2vw,19px); color:var(--ink-dim); max-width:640px; margin:0 0 34px;
+  }
+  .lede b{color:var(--ink); font-weight:600}
+  .heropills{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:44px}
+  .pill{
+    font-family:var(--mono); font-size:12px; color:var(--ink-dim);
+    border:1px solid var(--border); background:var(--card); padding:6px 12px; border-radius:20px;
+  }
+  .pill b{color:var(--ink)}
+  .scrollcue{
+    display:flex; align-items:center; gap:10px; color:var(--ink-mute); font-size:13px;
+    font-family:var(--mono);
+  }
+  .scrollcue .arrow{animation:bob 1.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(5px)}}
+
+  .statrow{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:10px}
+  @media (max-width:700px){.statrow{grid-template-columns:1fr}}
+  .statcard{
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px;
+  }
+  .statcard .num{font-size:30px; font-weight:800; font-family:var(--mono)}
+  .statcard.bad .num{color:var(--red)}
+  .statcard.good .num{color:var(--green)}
+  .statcard.neutral .num{color:var(--amber)}
+  .statcard .lbl{font-size:12.5px; color:var(--ink-dim); margin-top:4px}
+
+  /* SECTION shell */
+  section{padding:90px 0}
+  .section-head{margin-bottom:38px}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--blue); margin-bottom:10px;
+  }
+  h2.sec-title{font-size:clamp(24px,3.4vw,34px); margin:0 0 12px; font-weight:800; letter-spacing:-.01em}
+  .sec-sub{color:var(--ink-dim); font-size:16px; max-width:680px}
+
+  /* THE FIX / DEMO */
+  #fix{background:linear-gradient(180deg, transparent, rgba(79,168,255,.04), transparent)}
+  .demo-shell{
+    background:var(--card); border:1px solid var(--border); border-radius:16px; padding:22px 24px;
+    box-shadow:0 30px 60px -30px rgba(0,0,0,.6);
+  }
+  .demo-top{display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-bottom:18px}
+  .toggle-group{display:inline-flex; background:var(--bg2); border-radius:20px; padding:3px; border:1px solid var(--border)}
+  .toggle-group button{
+    border:none; background:transparent; padding:8px 16px; font-size:13px; font-weight:700;
+    border-radius:16px; cursor:pointer; color:var(--ink-mute); font-family:var(--sans);
+  }
+  .toggle-group button.active{background:var(--amber); color:#241a04}
+  .demo-spacer{flex:1}
+  .demo-btn{
+    background:var(--blue); color:#04101d; border:none; padding:10px 18px; border-radius:8px;
+    font-size:13px; font-weight:700; cursor:pointer; font-family:var(--sans);
+  }
+  .demo-btn:disabled{background:#284056; color:#5a7288; cursor:default}
+  .demo-ghost{
+    background:transparent; border:1px solid var(--border); color:var(--ink-dim);
+    padding:10px 14px; border-radius:8px; font-size:13px; cursor:pointer; font-family:var(--sans);
+  }
+  .weekcount{font-family:var(--mono); font-size:12.5px; color:var(--ink-dim)}
+  .weekcount b{color:var(--ink)}
+
+  .gapstat{
+    display:flex; align-items:baseline; gap:10px; background:var(--bg2); border:1px solid var(--border);
+    border-radius:10px; padding:13px 18px; margin-bottom:18px;
+  }
+  .gapstat .n{font-family:var(--mono); font-size:24px; font-weight:800; transition:color .3s}
+  .gapstat.wide .n{color:var(--red)}
+  .gapstat.narrow .n{color:var(--green)}
+  .gapstat .l{color:var(--ink-dim); font-size:13px}
+
+  .dcards{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media (max-width:640px){.dcards{grid-template-columns:1fr}}
+  .dcard{background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px 18px}
+  .dcard .dhead{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:2px}
+  .dcard .dname{font-weight:700; font-size:15px}
+  .dcard .dtag{font-size:10.5px; color:var(--ink-mute); border:1px solid var(--border); border-radius:10px; padding:2px 8px}
+  .dcard .dhandler{font-size:11.5px; color:var(--ink-mute); margin-bottom:12px}
+  .dbars{display:flex; align-items:flex-end; gap:4px; height:40px; margin-bottom:8px}
+  .dbar{flex:1; background:var(--border); border-radius:2px 2px 0 0; min-height:3px; transition:height .4s, background .4s}
+  .dstatus{
+    font-size:12.5px; padding:7px 9px; border-radius:7px; display:flex; align-items:center; gap:7px;
+    transition:background .3s, color .3s;
+  }
+  .ddot{width:7px; height:7px; border-radius:50%; flex-shrink:0}
+  .dsub{font-family:var(--mono); font-size:12px; color:var(--ink-mute); margin-top:10px}
+
+  .fix-caption{margin-top:16px; font-size:13px; color:var(--ink-mute); line-height:1.6}
+
+  /* TIMELINE / MODULES */
+  .modcard{
+    display:grid; grid-template-columns:64px 1fr; gap:20px; padding:30px 0;
+    border-top:1px solid var(--border); opacity:0; transform:translateY(18px);
+    transition:opacity .5s ease, transform .5s ease;
+  }
+  .modcard.in{opacity:1; transform:translateY(0)}
+  .modcard:last-child{border-bottom:1px solid var(--border)}
+  .modnum{
+    font-family:var(--mono); font-size:13px; color:var(--amber); font-weight:700;
+    display:flex; flex-direction:column; align-items:center; padding-top:4px;
+  }
+  .modnum .n{font-size:26px}
+  .modtitle{font-size:19px; font-weight:800; margin:0 0 4px}
+  .modsuper{font-family:var(--mono); font-size:11.5px; color:var(--blue); text-transform:uppercase; letter-spacing:.08em; margin-bottom:10px}
+  .modfinding{color:var(--ink-dim); font-size:14.5px; margin-bottom:16px; max-width:680px}
+  .promptcard{
+    background:var(--card2); border:1px solid var(--border); border-left:3px solid var(--amber);
+    border-radius:0 10px 10px 0; padding:14px 16px; font-family:var(--mono); font-size:12.5px;
+    color:#f4e2b8; max-width:720px; line-height:1.6;
+  }
+  .promptcard::before{content:"YOU WROTE →"; display:block; font-size:10px; letter-spacing:.1em; color:var(--ink-mute); margin-bottom:6px; font-family:var(--sans); font-weight:700}
+  .modlink{display:inline-block; margin-top:10px; font-size:12px; font-family:var(--mono); color:var(--ink-mute)}
+
+  /* SKILL */
+  #skill{background:linear-gradient(180deg, transparent, rgba(242,177,52,.05), transparent)}
+  .checks{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:26px 0}
+  @media (max-width:820px){.checks{grid-template-columns:1fr 1fr}}
+  @media (max-width:480px){.checks{grid-template-columns:1fr}}
+  .checkcard{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px}
+  .checkcard .cn{font-family:var(--mono); font-size:11px; color:var(--amber); margin-bottom:8px}
+  .checkcard .ct{font-weight:700; font-size:14px; margin-bottom:6px}
+  .checkcard .cd{font-size:12.5px; color:var(--ink-mute)}
+
+  .cron{
+    display:flex; align-items:center; gap:14px; background:var(--bg2); border:1px solid var(--border);
+    border-radius:12px; padding:16px 18px; margin-top:8px; flex-wrap:wrap;
+  }
+  .cron .tag{font-family:var(--mono); background:var(--green-dim); color:var(--green); padding:5px 10px; border-radius:6px; font-size:12px; font-weight:700}
+  .cron .txt{color:var(--ink-dim); font-size:13.5px}
+
+  .callback{
+    margin-top:26px; background:var(--card2); border:1px dashed var(--border); border-radius:12px;
+    padding:18px 20px; font-size:13.5px; color:var(--ink-dim); line-height:1.7;
+  }
+  .callback b{color:var(--ink)}
+
+  /* FOOTER */
+  footer{padding:70px 0 90px; border-top:1px solid var(--border)}
+  .evid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:20px}
+  @media (max-width:700px){.evid{grid-template-columns:1fr}}
+  .evidcell{
+    font-family:var(--mono); font-size:12px; color:var(--ink-mute); background:var(--card);
+    border:1px solid var(--border); border-radius:8px; padding:10px 12px;
+  }
+  .evidcell b{color:var(--ink-dim); display:block; font-family:var(--sans); font-size:12.5px; margin-bottom:3px}
+  .footnote{margin-top:30px; font-size:12.5px; color:var(--ink-mute)}
+</style>
+</head>
+<body>
+
+<div class="navdots" id="navdots">
+  <a href="#hero" title="Top"></a>
+  <a href="#fix" title="The fix"></a>
+  <a href="#timeline" title="The investigation"></a>
+  <a href="#skill" title="The skill"></a>
+</div>
+
+<!-- HERO -->
+<section id="hero" class="hero">
+  <div class="wrap">
+    <div class="kicker">Rook Dispatch &middot; Release 4.2 Postmortem &amp; Fix</div>
+    <h1 class="title">A faster callout window<br>quietly <span class="hl2">locked people out</span> —<br>here's the <span class="hl">fix</span>, live.</h1>
+    <p class="lede">
+      On 12 August, Dispatch got faster: a 60-second answer window instead of 90, and routing that favored
+      proximity over history. Responders had been asking for exactly this. <b>What nobody caught</b> was a scoring
+      gap that had been sitting in the code since 2019 — and the faster window is what finally made it hurt.
+    </p>
+    <div class="heropills">
+      <span class="pill">6 investigation sessions</span>
+      <span class="pill">1 real root cause</span>
+      <span class="pill"><b>0</b> tickets filed by the 2 worst-hit responders</span>
+      <span class="pill">1 shipped skill to catch it next time</span>
+    </div>
+    <div class="statrow">
+      <div class="statcard bad"><div class="num">&minus;89%</div><div class="lbl">Farlight's weekly callouts, in 3 weeks</div></div>
+      <div class="statcard neutral"><div class="num">2.4 → 7.0</div><div class="lbl">Spread across responders, still climbing</div></div>
+      <div class="statcard good"><div class="num">~3 wks</div><div class="lbl">Time to recover, under the fix below</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- THE FIX, LIVE -->
+<section id="fix">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">01 &middot; Lead with the fix</div>
+      <h2 class="sec-title">Don't take my word for it. Watch it happen.</h2>
+      <p class="sec-sub">
+        This is the actual handler screen, real weekly numbers from <code>callout-history.csv</code>.
+        Toggle the system, then fast-forward — and see why simply reverting the timeout would have left
+        Meteor Mite exactly where she is.
+      </p>
+    </div>
+
+    <div class="demo-shell">
+      <div class="demo-top">
+        <div class="toggle-group" id="modeToggle">
+          <button data-mode="today" class="active">Today's system</button>
+          <button data-mode="fix">Proposed fix</button>
+        </div>
+        <div class="demo-spacer"></div>
+        <div class="weekcount">Weeks simulated: <b id="weekCount">0</b></div>
+        <button class="demo-btn" id="advanceBtn">Fast-forward 1 week →</button>
+        <button class="demo-ghost" id="resetBtn">Reset</button>
+      </div>
+
+      <div class="gapstat" id="gapstat">
+        <span class="n" id="gapnum">—</span>
+        <span class="l">gap between the busiest and quietest responder this week</span>
+      </div>
+
+      <div class="dcards" id="dcards"></div>
+
+      <p class="fix-caption">
+        Same 60-second window in both modes — only the scoring memory changes. Under "today's system,"
+        a quiet responder stays quiet forever unless a lucky nearby incident bails them out. Under the fix,
+        quiet time itself starts healing their standing, no new setting for a handler to learn.
+        <a href="05-super-speed/prototype.html">Full 4-responder version →</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- TIMELINE -->
+<section id="timeline">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">02 &middot; How we found it</div>
+      <h2 class="sec-title">Six sessions, one thread pulled all the way through</h2>
+      <p class="sec-sub">
+        Each module below is a real finding, paired with the exact prompt that produced it —
+        pulled straight from this repo's own <code>prompts.md</code> files.
+      </p>
+    </div>
+
+    <div id="modtrack">
+      <article class="modcard">
+        <div class="modnum"><span class="n">01</span></div>
+        <div>
+          <div class="modsuper">Origin Story</div>
+          <h3 class="modtitle">Naming the root cause</h3>
+          <p class="modfinding"><code>history.py</code> scores a timed-out offer identically to an active decline
+            — and the score never decays back to neutral on its own. Harmless at a 90-second window. Not harmless
+            at 60.</p>
+          <div class="promptcard">What is the root cause for 4.2 release failure?</div>
+          <span class="modlink">01-origin-story/prompts.md &middot; CLAUDE.md</span>
+        </div>
+      </article>
+
+      <article class="modcard">
+        <div class="modnum"><span class="n">02</span></div>
+        <div>
+          <div class="modsuper">Super-Hearing</div>
+          <h3 class="modtitle">Two piles of feedback, one story neither told alone</h3>
+          <p class="modfinding">A handler named Kip watched one of his responders go silent and the other get
+            flooded — on the same screen — before anyone had traced it to code. And the two worst-hit responders
+            in the whole dataset never filed a single ticket.</p>
+          <div class="promptcard">You've now read both folders. Where do they disagree? What's loud in the interviews but rare in the tickets, and what's all over the tickets that nobody brought up in the interviews?</div>
+          <span class="modlink">02-super-hearing/prompts.md</span>
+        </div>
+      </article>
+
+      <article class="modcard">
+        <div class="modnum"><span class="n">03</span></div>
+        <div>
+          <div class="modsuper">Rewind</div>
+          <h3 class="modtitle">The recovering number was hiding a worsening one</h3>
+          <p class="modfinding">Acceptance rate looked like it was healing — 54% back to 73%. It was healing
+            because the system had simply stopped asking the people it might lose. The spread between busiest
+            and quietest responder tripled, 2.4 → 7.0, and kept climbing the whole time.</p>
+          <div class="promptcard">Analyze this dataset callout history and identify the 3–5 biggest drivers of 4.2 failure. Segment the results by all known vectors. Quantify each driver, flag anomalies, and explain what changed and why it matters. Finish with the 3 most important actions I should investigate as the PM.</div>
+          <span class="modlink">03-rewind/prompts.md &middot; 00-rook/data/callout-history.csv</span>
+        </div>
+      </article>
+
+      <article class="modcard">
+        <div class="modnum"><span class="n">04</span></div>
+        <div>
+          <div class="modsuper">X-Ray Vision</div>
+          <h3 class="modtitle">One way up, no way back on its own</h3>
+          <p class="modfinding">Exactly one function in the entire codebase ever adds points back to a
+            responder's standing — and only on a successful, in-time accept. No decay. No timer. No reset.
+            A responder already locked out has no path back except luck.</p>
+          <div class="promptcard">Find me the part of this code that takes points off somebody when they miss a ping or turn one down. Show it to me and explain it in plain English. Then find me every single thing in this code that puts points back on.</div>
+          <span class="modlink">04-x-ray-vision/prompts.md &middot; 00-rook/code/dispatch-routing/history.py</span>
+        </div>
+      </article>
+
+      <article class="modcard">
+        <div class="modnum"><span class="n">05</span></div>
+        <div>
+          <div class="modsuper">Super-Speed</div>
+          <h3 class="modtitle">A brief Helen could act on — and a demo that proved it</h3>
+          <p class="modfinding">The prototype above is the actual artifact from this session: proof that
+            reverting the timeout alone leaves every locked-out responder exactly where they are, and that the
+            real fix brings all four back to a normal pace in about three simulated weeks.</p>
+          <div class="promptcard">Take the brief you just wrote and build me a working prototype, an actual screen I can click through, not a description of one. Save it as 05-super-speed/prototype.html, a single file I can just open in my browser. Show me where this would actually happen, and make at least one thing on it respond when I click it.</div>
+          <span class="modlink">05-super-speed/prompts.md &middot; brief.md &middot; prototype.html</span>
+        </div>
+      </article>
+
+      <article class="modcard">
+        <div class="modnum"><span class="n">06</span></div>
+        <div>
+          <div class="modsuper">Sidekicks</div>
+          <h3 class="modtitle">Turning the habit into something that runs itself</h3>
+          <p class="modfinding">The same discipline that would have caught 4.2 early — name an owner, state
+            how you'll know it worked, keep scope bounded, explain the problem before the fix — is now a skill
+            that checks every brief automatically, every Monday, whether or not anything is "ready."</p>
+          <div class="promptcard">Schedule review-checklist to run every Monday morning, and let me know what it finds. Nothing needs to be ready for it to fire today. I'm setting the habit, not waiting on the result.</div>
+          <span class="modlink">06-sidekicks/prompts.md &middot; .claude/skills/review-checklist/</span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- SKILL -->
+<section id="skill">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">03 &middot; What stops this happening again</div>
+      <h2 class="sec-title">review-checklist: the same four questions, every brief, every time</h2>
+      <p class="sec-sub">
+        4.2 shipped without a named test owner, without a stated success measure, and — per Helen's own note —
+        almost got "fixed" by quietly flipping a number instead of explaining the problem first. This skill checks
+        for exactly that pattern before a brief goes anywhere.
+      </p>
+    </div>
+
+    <div class="checks">
+      <div class="checkcard"><div class="cn">CHECK 1</div><div class="ct">Owner named</div><div class="cd">Someone specific is holding it — not just consulted, not "whoever picks it up."</div></div>
+      <div class="checkcard"><div class="cn">CHECK 2</div><div class="ct">Success measure</div><div class="cd">States how anyone would know it worked — a signal, not just a description.</div></div>
+      <div class="checkcard"><div class="cn">CHECK 3</div><div class="ct">Scope stays bounded</div><div class="cd">What's promised at the end matches what was framed at the start.</div></div>
+      <div class="checkcard"><div class="cn">CHECK 4</div><div class="ct">Problem before fix</div><div class="cd">The problem is explained before the solution is pitched — order, not just content.</div></div>
+    </div>
+
+    <div class="cron">
+      <span class="tag">0 9 * * 1</span>
+      <span class="txt">Every Monday, 9am — re-reads every brief in the repo and reports the full checklist back automatically. Fires regardless of whether anything's changed.</span>
+    </div>
+
+    <div class="callback">
+      <b>The tell, in hindsight:</b> Marcus asked the exact right question in <code>#dispatch-team</code> the day
+      after 4.2 shipped — "does the config distinguish declining from timing out?" — and it just sat there,
+      unanswered, for weeks. Not a testing failure. A process one. That's precisely the gap
+      <code>review-checklist</code> exists to close before it ships next time, not after.
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="eyebrow">Receipts</div>
+    <h2 class="sec-title" style="font-size:22px">Every claim above traces back to a file in this repo</h2>
+    <div class="evid">
+      <div class="evidcell"><b>Root cause</b>00-rook/code/dispatch-routing/history.py, offer.py, config.py</div>
+      <div class="evidcell"><b>The data</b>00-rook/data/callout-history.csv</div>
+      <div class="evidcell"><b>The feedback</b>00-rook/feedback/tickets/, interviews/</div>
+      <div class="evidcell"><b>The brief</b>05-super-speed/brief.md, brief.pdf</div>
+      <div class="evidcell"><b>The prototype</b>05-super-speed/prototype.html</div>
+      <div class="evidcell"><b>The skill</b>.claude/skills/review-checklist/SKILL.md</div>
+    </div>
+    <div class="footnote">
+      Six prompt libraries, one per module: 01-origin-story, 02-super-hearing, 03-rewind, 04-x-ray-vision,
+      05-super-speed, 06-sidekicks — each <code>prompts.md</code> holds the real questions asked, unedited.
+      Rook Industries is a fictional teaching scenario for Product School's Claude Code for PMs course.
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---- scroll-reveal for module cards ----
+  const cards = document.querySelectorAll('.modcard');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); });
+  }, { threshold: 0.15 });
+  cards.forEach(c => io.observe(c));
+
+  // ---- nav dots active state ----
+  const dotSections = ['hero','fix','timeline','skill'].map(id => document.getElementById(id));
+  const dotLinks = Array.from(document.querySelectorAll('#navdots a'));
+  const dotIo = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const idx = dotSections.indexOf(entry.target);
+        dotLinks.forEach(l => l.classList.remove('active'));
+        if (dotLinks[idx]) dotLinks[idx].classList.add('active');
+      }
+    });
+  }, { threshold: 0.5 });
+  dotSections.forEach(s => s && dotIo.observe(s));
+
+  // ---- the live recovery demo (condensed 2-responder version) ----
+  const RESP = {
+    mite: { name: 'Meteor Mite', tag: 'aquatic', handler: 'Kip', startHistory: [10, 4, 2, 1], baseline: 11, startStanding: 8 },
+    gale: { name: 'The Gale',    tag: 'flight',  handler: 'Kip', startHistory: [15, 17, 20, 21], baseline: 13, startStanding: 96 }
+  };
+  const KEYS = Object.keys(RESP);
+  const WEEKS_LBL = ['8/10', '8/17', '8/24', '8/31'];
+
+  let history = {}, standing = {}, mode = 'today', weeks = 0;
+  const DECAY = 0.45, TARGET = 50, TOL = 8, MAXW = 8;
+
+  function resetState() {
+    history = {}; standing = {}; weeks = 0;
+    KEYS.forEach(k => { history[k] = [...RESP[k].startHistory]; standing[k] = RESP[k].startStanding; });
+  }
+  function stepStanding(s) { return s + (TARGET - s) * DECAY; }
+  function weeksToNormal(s) {
+    let cur = s, n = 0;
+    while (Math.abs(TARGET - cur) > TOL && n < 20) { cur = stepStanding(cur); n++; }
+    return n;
+  }
+  function pingsForStanding(key, s) {
+    const base = RESP[key].baseline;
+    return Math.max(0, Math.round(Math.min(base * (s / TARGET), base * 2.2)));
+  }
+  function project(key) {
+    let pings = history[key][history[key].length - 1];
+    let s = standing[key];
+    if (mode === 'today') {
+      pings = Math.max(0, pings);
+    } else {
+      s = stepStanding(s);
+      pings = pingsForStanding(key, s);
+    }
+    return { pings, standing: s };
+  }
+
+  function buildCards() {
+    const root = document.getElementById('dcards');
+    root.innerHTML = KEYS.map(key => {
+      const r = RESP[key];
+      return `
+        <div class="dcard" id="dcard-${key}">
+          <div class="dhead">
+            <div class="dname">${r.name}</div>
+            <div class="dtag">${r.tag}</div>
+          </div>
+          <div class="dhandler">Handled by ${r.handler}</div>
+          <div class="dbars" id="dbars-${key}"></div>
+          <div class="dstatus" id="dstatus-${key}"><div class="ddot"></div><span></span></div>
+          <div class="dsub" id="dsub-${key}"></div>
+        </div>`;
+    }).join('');
+  }
+
+  function render() {
+    document.getElementById('weekCount').textContent = weeks;
+    KEYS.forEach(renderCard);
+    document.querySelectorAll('#modeToggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+    const btn = document.getElementById('advanceBtn');
+    btn.disabled = weeks >= MAXW;
+    btn.textContent = weeks >= MAXW ? 'Simulation complete' : 'Fast-forward 1 week →';
+    renderGap();
+  }
+
+  function renderGap() {
+    const latest = KEYS.map(k => history[k][history[k].length - 1]);
+    const gap = Math.max(...latest) - Math.min(...latest);
+    document.getElementById('gapnum').textContent = gap + ' ' + (gap === 1 ? 'ping' : 'pings');
+    const el = document.getElementById('gapstat');
+    el.classList.remove('narrow', 'wide');
+    el.classList.add(gap <= 6 ? 'narrow' : 'wide');
+  }
+
+  function renderCard(key) {
+    const r = RESP[key];
+    const data = history[key];
+    const barsEl = document.getElementById('dbars-' + key);
+    barsEl.innerHTML = '';
+    const max = Math.max(...data, r.baseline * 1.6);
+    data.forEach(v => {
+      const bar = document.createElement('div');
+      bar.className = 'dbar';
+      bar.style.height = Math.max(3, (v / max) * 40) + 'px';
+      bar.style.background = v <= r.baseline * 0.25 ? 'var(--red)' : (v >= r.baseline * 1.4 ? 'var(--amber)' : 'var(--blue)');
+      barsEl.appendChild(bar);
+    });
+
+    const latest = data[data.length - 1];
+    const statusEl = document.getElementById('dstatus-' + key);
+    const dot = statusEl.querySelector('.ddot');
+    const label = statusEl.querySelector('span');
+    const base = r.baseline;
+    const pingWord = latest === 1 ? 'ping' : 'pings';
+    const s = standing[key];
+
+    let bg, fg, text;
+    if (mode === 'today') {
+      if (latest <= base * 0.35) {
+        bg = 'var(--red-dim)'; fg = 'var(--red)';
+        text = `${latest} ${pingWord} this week — quiet, no change without a lucky nearby call`;
+      } else if (latest >= base * 1.4) {
+        bg = 'var(--amber-dim)'; fg = 'var(--amber)';
+        text = `${latest} ${pingWord} this week — carrying more than usual, no relief on its own`;
+      } else {
+        bg = 'var(--green-dim)'; fg = 'var(--green)';
+        text = `${latest} ${pingWord} this week — steady`;
+      }
+    } else {
+      const atNormal = Math.abs(TARGET - s) <= TOL;
+      if (atNormal) {
+        bg = 'var(--green-dim)'; fg = 'var(--green)';
+        text = `${latest} ${pingWord} this week — back to a normal, steady pace`;
+      } else {
+        const wtn = weeksToNormal(s);
+        bg = 'var(--blue-dim)'; fg = 'var(--blue)';
+        text = `${latest} ${pingWord} this week — recovering, about ${wtn} more week${wtn === 1 ? '' : 's'} to normal`;
+      }
+    }
+    statusEl.style.background = bg;
+    statusEl.style.color = fg;
+    dot.style.background = fg;
+    label.textContent = text;
+    document.getElementById('dsub-' + key).textContent = 'fairness score: ' + Math.round(s) + ' / 100';
+  }
+
+  document.getElementById('modeToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    mode = btn.dataset.mode;
+    render();
+  });
+  document.getElementById('advanceBtn').addEventListener('click', () => {
+    if (weeks >= MAXW) return;
+    weeks += 1;
+    KEYS.forEach(key => {
+      const { pings, standing: s } = project(key);
+      history[key].push(pings);
+      history[key].shift();
+      standing[key] = s;
+    });
+    render();
+  });
+  document.getElementById('resetBtn').addEventListener('click', () => { resetState(); render(); });
+
+  resetState();
+  buildCards();
+  render();
+</script>
+</body>
+</html>
