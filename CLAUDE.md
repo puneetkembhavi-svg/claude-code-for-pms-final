@@ -106,6 +106,15 @@ Delivered `05-super-speed/prototype.html` — a clickable before/after demo, sin
 
 Note: capability tags shown on prototype cards (aquatic, flight, structural-entry, cold-weather) are only partly confirmed — "structural-entry"/"flight" are real (from Ambrose's interview), "aquatic"/"cold-weather" are invented for visual flavor, not evidence. Fine for a prototype, not for citing as fact elsewhere.
 
+### Module 6 — review-checklist skill built and scheduled
+Built `.claude/skills/review-checklist/SKILL.md` — a personal skill encoding four fixed checks the user applies to every brief before it goes further: owner named, success measure stated, scope stays bounded (end matches the opening framing), problem explained before the fix. Report format (dot-leader per-check lines + a flag reason + aggregate summary) was matched exactly to the pre-existing `06-sidekicks/scheduled-run-output.txt`, which turned out to already contain the correct expected output and four graded ground-truth examples.
+
+Ran it for real: all 4 files in `06-sidekicks/briefs/` each came back with exactly one flag (bulk-callout: no owner; routing-override-audit-log: no success measure; requisition-approval-chains: scope creep after "that's the whole ask"; handler-phone-app: solution before problem) — matches the ground-truth file exactly. Also ran it against `05-super-speed/brief.md`: 1 flag — no owner named (says who it's *for*, Helen, and who wrote it, but never who builds it; should name Marcus/Wen). Side finding: none of the 4 test briefs name an individual author either, only a team line ("Product, Dispatch/Supply") — a related blind spot one level above the owner check.
+
+Generated `05-super-speed/brief.pdf` — one-page, print-ready version of the brief for sharing (via reportlab; no external link, local file only).
+
+Set up a recurring scheduled task, `review-checklist-monday` (cron `0 9 * * 1`, every Monday 9am local): re-reads whatever's in `06-sidekicks/briefs/` plus `05-super-speed/brief.md` each time and reports the full checklist output back automatically. Fires regardless of whether anything changed — intentional, it's a standing habit, not a conditional trigger.
+
 ### Feedback: interviews vs. tickets
 25 tickets (`00-rook/feedback/tickets/`): 16 quiet-spell, 6 missed/expired, 3 combined — 13 handler-filed (web console), 12 responder-filed (mobile, terse). 4 interviews (`00-rook/feedback/interviews/`, run by Sofia Marino for console redesign research — not originally about 4.2) independently corroborate the spiral: Kip watches two of his own responders side by side (Meteor Mite crashed, The Gale thriving) with nothing on screen explaining why — same divergence pattern as the CSV, spotted without knowing the routing bug existed. Ambrose told the same near-miss story twice, three weeks apart, unprompted both times — once as T-001, once in his interview.
 
